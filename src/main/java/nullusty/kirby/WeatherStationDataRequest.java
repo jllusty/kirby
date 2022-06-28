@@ -6,23 +6,26 @@ import java.net.http.HttpRequest;
 
 // immutable weather station data request
 public class WeatherStationDataRequest {
-    final HttpRequest.Builder builder;
+    // HttpRequest
+    private final HttpRequest request;
     // other request metadata
     final String stationId;
     public WeatherStationDataRequest(String stationId) throws URISyntaxException {
         this.stationId = stationId;
 
-        builder = HttpRequest.newBuilder();
-        builder.uri(new URI(String.format("%s/%s",stationId,"observations/latest")));
-        builder.setHeader("Accept", "application/geo+json");
-        builder.setHeader("User-Agent", "(jotunheim.dev, jllusty@gmail.com)");
+        // build request at instantiation time
+        this.request = HttpRequest.newBuilder()
+                .uri(new URI(String.format("%s/%s",stationId,"observations/latest")))
+                .setHeader("Accept", "application/geo+json")
+                .setHeader("User-Agent", "(jotunheim.dev, jllusty@gmail.com)")
+                .build();
     }
 
-    public HttpRequest getBuilder() {
-        return builder.build();
+    public HttpRequest getHttpRequest() {
+        return request;
     }
 
     public String toString() {
-        return "{request: " + builder.build().toString() + ", station: " + stationId + "}";
+        return "{request: " + request.toString() + ", station: " + stationId + "}";
     }
 }

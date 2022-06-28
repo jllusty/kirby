@@ -8,15 +8,16 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.logging.Logger;
 
 public class NationalWeatherServiceClient implements WeatherClient {
     private static final Logger LOGGER = org.geotools.util.logging.Logging.getLogger(Main.class);
 
     static HttpClient httpClient = HttpClient.newHttpClient();
+
+    // cache to avoid constantly re-creating weather station data objects
+    private Map<String,WeatherStationDataRequest> stationDataRequestMap = new HashMap<>();
 
     public NationalWeatherServiceClient() {
 
@@ -51,7 +52,14 @@ public class NationalWeatherServiceClient implements WeatherClient {
                 // should catch this?
                 Map<String,Object> objectMap = new ObjectMapper().convertValue(obj, new TypeReference<Map<String,Object>>(){});
                 String stationURL = objectMap.get("id").toString();
-                weatherStationDataRequestList.add(new WeatherStationDataRequest(stationURL));
+                // don't re-create unnecessary immutable weather request objects
+                if(stationDataRequestMap.containsKey(stationURL)) {
+                    weatherStationDataRequestList.add(stationDataRequestMap.get(stationURL));
+                }
+                else {
+                    stationDataRequestMap.put(stationURL, new WeatherStationDataRequest(stationURL));
+                    weatherStationDataRequestList.add(stationDataRequestMap.get(stationURL));
+                }
             }
         }
         catch(Exception e) {
@@ -61,28 +69,64 @@ public class NationalWeatherServiceClient implements WeatherClient {
         return weatherStationDataRequestList;
     }
 
+
+    // should refactor this into smaller pieces - what about the methods that get optionals? can we get
+    // a useful generic subroutine to handle that process?
     private WeatherStationData createWeatherStationData(HttpResponse<String> response, Long timeOfRequest) {
         try {
+            // root features of geoJSON
             Map<String,Object> featureJSONmap = new ObjectMapper().readValue(response.body(), new TypeReference<Map<String,Object>>(){});
 
+            // want to throw if these fail to parse, since they are required fields
             // get geometry
             Map<String,Object> geometryJSONmap = new ObjectMapper().convertValue(featureJSONmap.get("geometry"), new TypeReference<Map<String,Object>>(){});
             List<String> latLng = new ObjectMapper().convertValue(geometryJSONmap.get("coordinates"), new TypeReference<List<String>>(){});
-
-            Map<String,Object> propertiesJSONmap = new ObjectMapper().convertValue(featureJSONmap.get("properties"),  new TypeReference<Map<String,Object>>(){});
-            // get id
-            String id = propertiesJSONmap.get("station").toString();
-            // get temperature
-            Map<String,Object> temperaturesJSONmap = new ObjectMapper().convertValue(propertiesJSONmap.get("temperature"), new TypeReference<Map<String,Object>>(){});
-            Double temperature = Double.valueOf(temperaturesJSONmap.get("value").toString());
-            // get pressure
-            //Map<String,Object> pressuresJSONmap = new ObjectMapper().convertValue(propertiesJSONmap.get("barometricPressure"), new TypeReference<Map<String,Object>>(){});
-            Double pressure = null; // Double.valueOf(pressuresJSONmap.get("value").toString());
-            // get elevation, bruh
-            // update weather station data
             Double lat =  Double.valueOf(latLng.get(0));
             Double lng =  Double.valueOf(latLng.get(1));
-            return new WeatherStationData(id, temperature, 100.0, lat, lng, timeOfRequest);
+
+            // get properties
+            if(featureJSONmap.containsKey("properties")) {
+                Map<String,Object> propertiesJSONmap = new ObjectMapper().convertValue(featureJSONmap.get("properties"),  new TypeReference<Map<String,Object>>(){});
+                // required property
+                String id = propertiesJSONmap.get("station").toString();
+                // todo: should check required properties for nullness? not here, in the weather data builder method
+
+                // try to get temperature
+                Optional<Double> temperature = Optional.empty();
+                if(propertiesJSONmap.containsKey("temperature")) {
+                    try {
+                        Map<String,Object> temperaturesJSONmap = new ObjectMapper().convertValue(propertiesJSONmap.get("temperature"), new TypeReference<Map<String,Object>>(){});
+                        temperature = Optional.of(Double.valueOf(temperaturesJSONmap.get("value").toString()));
+                    }
+                    catch(IllegalArgumentException e) {
+                        // todo: add error handler for logs
+                        LOGGER.info("Could not fetch temperature property: " + e.getMessage());
+                    }
+                }
+                // try to get pressure
+                Optional<Double> pressure = Optional.empty();
+                if(propertiesJSONmap.containsKey("barometricPressure")) {
+                    try {
+                        Map<String,Object> pressuresJSONmap = new ObjectMapper().convertValue(propertiesJSONmap.get("barometricPressure"), new TypeReference<Map<String,Object>>(){});
+                        pressure = Optional.of(Double.valueOf(pressuresJSONmap.get("value").toString()));
+                    }
+                    catch(IllegalArgumentException e) {
+                        // todo: add error handler for logs
+                        LOGGER.info("Could not fetch pressure property: " + e.getMessage());
+                    }
+                }
+                // todo: refactor the above into testable functions and add parsing for elevation
+                Optional<Double> elevation = Optional.empty();
+                return new WeatherStationData.WeatherStationDataBuilder(id, timeOfRequest, lat, lng)
+                        .setTemperature(temperature)
+                        .setPressure(pressure)
+                        .setElevation(elevation)
+                        .build();
+            }
+            else {
+                // should throw something more specific
+                throw new Exception("HTTP Response's geoJSON does not contain properties!");
+            }
         }
         catch(Exception e) {
             LOGGER.info("Failed to ingest weather station data: " + e.getMessage());
@@ -96,7 +140,7 @@ public class NationalWeatherServiceClient implements WeatherClient {
         try {
             // send request, get response
             Long timeOfRequest = Instant.now().getEpochSecond();
-            HttpResponse<String> response = httpClient.send(weatherStationDataRequest.getBuilder(), HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = httpClient.send(weatherStationDataRequest.getHttpRequest(), HttpResponse.BodyHandlers.ofString());
             // map each response to a data object
             return createWeatherStationData(response,timeOfRequest);
         }
