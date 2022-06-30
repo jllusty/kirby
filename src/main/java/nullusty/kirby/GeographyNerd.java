@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 // Knows Geography
+// Do we really need more than one of these? Could be a singleton
 public class GeographyNerd {
     private final Map<String,String> stateNameToAbbreviationMap = new HashMap<>();
     private final Map<String,String> abbreviationToStateNameMap = new HashMap<>();

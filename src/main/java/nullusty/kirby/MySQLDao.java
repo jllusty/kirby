@@ -27,13 +27,16 @@ public class MySQLDao {
         Double temperature = (!weatherStationData.getTemperature().isEmpty()) ? weatherStationData.getTemperature().get() : null;
         Double pressure = (!weatherStationData.getPressure().isEmpty()) ? weatherStationData.getPressure().get() : null;
         Double elevation = (!weatherStationData.getElevation().isEmpty()) ? weatherStationData.getElevation().get() : null;
-        String query = String.format("INSERT INTO WEATHER (station,ts,lat,lng,temperature,pressure,state) VALUES ('%s',%s,%s,%s,%s,%s,'%s')",
+
+        // create insertion query
+        String query = String.format("INSERT INTO WEATHER (station,ts,lat,lng,elevation,temperature,pressure,state) VALUES ('%s',%s,%s,%s,%s,%s,%s,'%s')",
                 weatherStationData.getId(),
                 weatherStationData.getObservationTimeSeconds(),
                 weatherStationData.getLatitude(),
+                weatherStationData.getLongitude(),
+                elevation,
                 temperature,
                 pressure,
-                elevation,
                 stateName);
         LOGGER.info("Executing SQL Query: " + query);
 

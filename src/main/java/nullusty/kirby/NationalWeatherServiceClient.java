@@ -1,5 +1,6 @@
 package nullusty.kirby;
 
+import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 
@@ -19,9 +20,7 @@ public class NationalWeatherServiceClient implements WeatherClient {
     // cache to avoid constantly re-creating weather station data objects
     private Map<String,WeatherStationDataRequest> stationDataRequestMap = new HashMap<>();
 
-    public NationalWeatherServiceClient() {
-
-    }
+    public NationalWeatherServiceClient() {}
 
     @Override
     public List<WeatherStationDataRequest> getWeatherStationDataRequests(String territoryAbbreviation) {
@@ -70,7 +69,27 @@ public class NationalWeatherServiceClient implements WeatherClient {
     }
 
 
-    // should refactor this into smaller pieces - what about the methods that get optionals? can we get
+    // tries to get an optional property from a Map<String,Object> propertiesJSONmap
+    // todo: add error handler for logs
+    // is T extends Object a meaningful bound? I could have T extend a ObservationValue class
+    // or something
+private <T extends Object> Optional<T> getOptionalValueFromPropertiesJsonMap(Map<String, Object> propertiesJsonMap, String propertyName, Class<T> type) {
+    if (propertiesJsonMap.containsKey(propertyName)) {
+        try {
+            Map<String, Object> temperaturesJSONmap = new ObjectMapper().convertValue(propertiesJsonMap.get("temperature"), new TypeReference<Map<String, Object>>() {});
+            return Optional.of(type.cast(temperaturesJSONmap.get("value")));
+        }
+        catch(IllegalArgumentException e) {
+            LOGGER.info("Could not fetch property = " + propertyName + " : " + e.getMessage());
+        }
+        catch(ClassCastException e) {
+            LOGGER.info("Could not cast property = " + propertyName + " to type " + type.getName() + " : " + e.getMessage());
+        }
+    }
+    return Optional.empty();
+}
+
+        // should refactor this into smaller pieces - what about the methods that get optionals? can we get
     // a useful generic subroutine to handle that process?
     private WeatherStationData createWeatherStationData(HttpResponse<String> response, Long timeOfRequest) {
         try {
@@ -92,31 +111,10 @@ public class NationalWeatherServiceClient implements WeatherClient {
                 // todo: should check required properties for nullness? not here, in the weather data builder method
 
                 // try to get temperature
-                Optional<Double> temperature = Optional.empty();
-                if(propertiesJSONmap.containsKey("temperature")) {
-                    try {
-                        Map<String,Object> temperaturesJSONmap = new ObjectMapper().convertValue(propertiesJSONmap.get("temperature"), new TypeReference<Map<String,Object>>(){});
-                        temperature = Optional.of(Double.valueOf(temperaturesJSONmap.get("value").toString()));
-                    }
-                    catch(IllegalArgumentException e) {
-                        // todo: add error handler for logs
-                        LOGGER.info("Could not fetch temperature property: " + e.getMessage());
-                    }
-                }
-                // try to get pressure
-                Optional<Double> pressure = Optional.empty();
-                if(propertiesJSONmap.containsKey("barometricPressure")) {
-                    try {
-                        Map<String,Object> pressuresJSONmap = new ObjectMapper().convertValue(propertiesJSONmap.get("barometricPressure"), new TypeReference<Map<String,Object>>(){});
-                        pressure = Optional.of(Double.valueOf(pressuresJSONmap.get("value").toString()));
-                    }
-                    catch(IllegalArgumentException e) {
-                        // todo: add error handler for logs
-                        LOGGER.info("Could not fetch pressure property: " + e.getMessage());
-                    }
-                }
-                // todo: refactor the above into testable functions and add parsing for elevation
-                Optional<Double> elevation = Optional.empty();
+                Optional<Double> temperature = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap,"temperature", Double.class);
+                Optional<Double> pressure = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "barometricPressure", Double.class);
+                // todo: add parsing for elevation
+                Optional<Double> elevation = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "elevation", Double.class);
                 return new WeatherStationData.WeatherStationDataBuilder(id, timeOfRequest, lat, lng)
                         .setTemperature(temperature)
                         .setPressure(pressure)
