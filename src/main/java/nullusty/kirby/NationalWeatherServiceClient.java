@@ -110,10 +110,9 @@ private <T extends Object> Optional<T> getOptionalValueFromPropertiesJsonMap(Map
                 String id = propertiesJSONmap.get("station").toString();
                 // todo: should check required properties for nullness? not here, in the weather data builder method
 
-                // try to get temperature
+                // get optional properties
                 Optional<Double> temperature = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap,"temperature", Double.class);
                 Optional<Double> pressure = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "barometricPressure", Double.class);
-                // todo: add parsing for elevation
                 Optional<Double> elevation = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "elevation", Double.class);
                 return new WeatherStationData.WeatherStationDataBuilder(id, timeOfRequest, lat, lng)
                         .setTemperature(temperature)
