@@ -10,10 +10,12 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Instant;
 import java.util.*;
-import java.util.logging.Logger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NationalWeatherServiceClient implements WeatherClient {
-    private static final Logger LOGGER = org.geotools.util.logging.Logging.getLogger(Main.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(NationalWeatherServiceClient.class);
 
     static HttpClient httpClient = HttpClient.newHttpClient();
 
@@ -33,8 +35,9 @@ public class NationalWeatherServiceClient implements WeatherClient {
             HttpResponse<String> httpResponse = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
             return listStations(httpResponse.body());
         }
+        // todo: should use more specific exception, and potentially not catch here, maybe in calling class
         catch(Exception e) {
-            LOGGER.info("Failed to get weather data request objects:" + e.getMessage());
+            LOGGER.error("Failed to get weather data request objects:" + e.getMessage());
             return null;
         }
     }
@@ -62,7 +65,7 @@ public class NationalWeatherServiceClient implements WeatherClient {
             }
         }
         catch(Exception e) {
-            System.out.println(e.getMessage());
+            LOGGER.error("Could not generate a list of queryable weather stations from HTTP Request Body = " + httpResponseBodyString + " : " + e.getMessage());
         }
 
         return weatherStationDataRequestList;
@@ -70,7 +73,6 @@ public class NationalWeatherServiceClient implements WeatherClient {
 
 
     // tries to get an optional property from a Map<String,Object> propertiesJSONmap
-    // todo: add error handler for logs
     // is T extends Object a meaningful bound? I could have T extend a ObservationValue class
     // or something
 private <T extends Object> Optional<T> getOptionalValueFromPropertiesJsonMap(Map<String, Object> propertiesJsonMap, String propertyName, Class<T> type) {
@@ -89,8 +91,7 @@ private <T extends Object> Optional<T> getOptionalValueFromPropertiesJsonMap(Map
     return Optional.empty();
 }
 
-        // should refactor this into smaller pieces - what about the methods that get optionals? can we get
-    // a useful generic subroutine to handle that process?
+    // create WeatherStationData from a NWS Weather Station API Request
     private WeatherStationData createWeatherStationData(HttpResponse<String> response, Long timeOfRequest) {
         try {
             // root features of geoJSON
@@ -126,7 +127,7 @@ private <T extends Object> Optional<T> getOptionalValueFromPropertiesJsonMap(Map
             }
         }
         catch(Exception e) {
-            LOGGER.info("Failed to ingest weather station data: " + e.getMessage());
+            LOGGER.error("Failed to ingest weather station data: " + e.getMessage());
             return null;
         }
 
@@ -142,7 +143,7 @@ private <T extends Object> Optional<T> getOptionalValueFromPropertiesJsonMap(Map
             return createWeatherStationData(response,timeOfRequest);
         }
         catch(Exception e) {
-            LOGGER.info("Weather Station Request Failure: "+ e.getMessage());
+            LOGGER.error("Weather Station Request Failure: "+ e.getMessage());
             return null;
         }
 

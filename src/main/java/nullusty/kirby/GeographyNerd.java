@@ -1,13 +1,21 @@
 package nullusty.kirby;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 // Knows Geography
 // Do we really need more than one of these? Could be a singleton
 public class GeographyNerd {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
+
     private final Map<String,String> stateNameToAbbreviationMap = new HashMap<>();
     private final Map<String,String> abbreviationToStateNameMap = new HashMap<>();
 
@@ -28,7 +36,7 @@ public class GeographyNerd {
             }
             reader.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.error("Error trying to read Geographies CSV from filename = " + filepath + " : " + e.getMessage());
         }
     }
 

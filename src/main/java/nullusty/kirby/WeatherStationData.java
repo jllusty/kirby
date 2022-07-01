@@ -11,6 +11,22 @@ public class WeatherStationData {
     // Unique Identifier (Required)
     final private String id;
 
+    // WeatherStationDataProperty<V,U> w/ V value typeclass and U unit typeclass?
+    // WeatherStationDataProperty<Double,Meters>
+    // weatherStationDataProperty.getValueClass()
+    // weatherStationDataProperty.getUnitClass()
+    // weatherStationDataProperty.getUnitClass().toToMillimeters()
+    //
+    // too many units - this could get hairy. Why not just an enum?
+    // Why do we care what units these are in if it is clearly annotated?
+    //
+    // It needs to be reflected all the way through to the database where the units are stored,
+    // and as long as it has a properly maintained schema it shouldn't be an issue.
+    //
+    // There is an aspect to units that needs to be established: converting the 3rd party providers
+    // units into our own, internal units.
+    //
+
     // Time of Observation (Required)
     final private Long observationTimeSeconds;          // backend unit: Seconds (Unix Time)
 
