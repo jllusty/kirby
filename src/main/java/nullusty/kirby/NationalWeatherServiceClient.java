@@ -19,20 +19,18 @@ public class NationalWeatherServiceClient implements WeatherClient {
 
     static HttpClient httpClient = HttpClient.newHttpClient();
 
-    // cache to avoid constantly re-creating weather station data objects
-    private Map<String,WeatherStationDataRequest> stationDataRequestMap = new HashMap<>();
-
     public NationalWeatherServiceClient() {}
 
     @Override
     public List<WeatherStationDataRequest> getWeatherStationDataRequests(String territoryAbbreviation, String ingestionBatchId) {
         try {
             // Generate Station Request, Generates Latest Requests
-            HttpRequest.Builder builder = HttpRequest.newBuilder();
-            builder.uri(new URI(String.format("https://api.weather.gov/stations?state=%s",territoryAbbreviation)));
-            builder.setHeader("Accept", "application/geo+json");
-            builder.setHeader("User-Agent", "(jotunheim.dev, jllusty@gmail.com)");
-            HttpResponse<String> httpResponse = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                .uri(new URI(String.format("https://api.weather.gov/stations?state=%s",territoryAbbreviation)))
+                .setHeader("Accept", "application/geo+json")
+                .setHeader("User-Agent", "(jotunheim.dev, jllusty@gmail.com)")
+                .build();
+            HttpResponse<String> httpResponse = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
             return listStations(httpResponse.body(), ingestionBatchId);
         }
         // todo: should use more specific exception, and potentially not catch here, maybe in calling class
@@ -54,14 +52,7 @@ public class NationalWeatherServiceClient implements WeatherClient {
                 // should catch this?
                 Map<String,Object> objectMap = new ObjectMapper().convertValue(obj, new TypeReference<Map<String,Object>>(){});
                 String stationURL = objectMap.get("id").toString();
-                // don't re-create unnecessary immutable weather request objects
-                if(stationDataRequestMap.containsKey(stationURL)) {
-                    weatherStationDataRequestList.add(stationDataRequestMap.get(stationURL));
-                }
-                else {
-                    stationDataRequestMap.put(stationURL, new WeatherStationDataRequest(stationURL, ingestionBatchId));
-                    weatherStationDataRequestList.add(stationDataRequestMap.get(stationURL));
-                }
+                weatherStationDataRequestList.add(new WeatherStationDataRequest.Builder(stationURL, ingestionBatchId).build());
             }
         }
         catch(Exception e) {
@@ -96,6 +87,7 @@ public class NationalWeatherServiceClient implements WeatherClient {
     }
 
     // create WeatherStationData from a NWS Weather Station API Request
+    // todo: could this be moved into WeatherStationData.Builder?
     private WeatherStationData createWeatherStationData(HttpResponse<String> response, Long timeOfRequest, String ingestionBatchId) {
         try {
             // root features of geoJSON
@@ -113,14 +105,12 @@ public class NationalWeatherServiceClient implements WeatherClient {
                 Map<String,Object> propertiesJSONmap = new ObjectMapper().convertValue(featureJSONmap.get("properties"),  new TypeReference<Map<String,Object>>(){});
                 // required property
                 String id = propertiesJSONmap.get("station").toString();
-                // todo: should check required properties for nullness? not here, in the weather data builder method
 
                 // get optional properties
                 Optional<Double> temperature = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap,"temperature");
                 Optional<Double> pressure = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "barometricPressure");
                 Optional<Double> elevation = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "elevation");
-                // todo: refactor ingestionBatchId
-                return new WeatherStationData.WeatherStationDataBuilder(id, timeOfRequest, lat, lng)
+                return new WeatherStationData.Builder(id, timeOfRequest, lat, lng)
                         .setTemperature(temperature)
                         .setPressure(pressure)
                         .setElevation(elevation)

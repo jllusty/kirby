@@ -29,7 +29,7 @@ public class WeatherStationData {
     // Metadata Properties
     final private Optional<String> ingestionBatchId;
 
-    public static class WeatherStationDataBuilder {
+    public static class Builder {
         // Required Properties
         final private String id;
         final private Long observationTimeSeconds;
@@ -42,7 +42,7 @@ public class WeatherStationData {
         private Optional<Double> pressure = Optional.empty();
         private Optional<String> ingestionBatchId = Optional.empty();
 
-        public WeatherStationDataBuilder(String id, Long observationTimeSeconds, Double latitude, Double longitude) {
+        public Builder(String id, Long observationTimeSeconds, Double latitude, Double longitude) {
             // id is not null or empty string
             Preconditions.checkArgument(id != null, "id cannot be null");
             Preconditions.checkArgument(!id.isEmpty(), "id cannot be empty");
@@ -64,19 +64,19 @@ public class WeatherStationData {
             this.longitude = longitude;
         }
 
-        public WeatherStationDataBuilder setTemperature(Optional<Double> temperature) {
+        public Builder setTemperature(Optional<Double> temperature) {
             this.temperature = temperature;
             return this;
         }
-        public WeatherStationDataBuilder setPressure(Optional<Double> pressure) {
+        public Builder setPressure(Optional<Double> pressure) {
             this.pressure = pressure;
             return this;
         }
-        public WeatherStationDataBuilder setElevation(Optional<Double> elevation) {
+        public Builder setElevation(Optional<Double> elevation) {
             this.elevation = elevation;
             return this;
         }
-        public WeatherStationDataBuilder setIngestionBatchId(Optional<String> ingestionBatchId) {
+        public Builder setIngestionBatchId(Optional<String> ingestionBatchId) {
             this.ingestionBatchId = ingestionBatchId;
             return this;
         }

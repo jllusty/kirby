@@ -38,12 +38,13 @@ public class Main {
         List<String> statesToIngest = Arrays.asList("Oregon");
 
         // Run for 1 hours (should be parameters)
-        long runTime = Duration.of(9, ChronoUnit.HOURS).toSeconds();
+        long runTime = Duration.of(1, ChronoUnit.HOURS).toSeconds();
         long startTime =  Instant.now().getEpochSecond();
         long endTime = startTime + runTime;
         while(Instant.now().getEpochSecond() < endTime) {
-            // Run identifier (unused)
+            // Run identifier
             String runUUID = UUID.randomUUID().toString();
+            LOGGER.info("starting batch of ingestions with id = " + runUUID);
 
             // Ingest each US territories weather data
             for(String stateName : statesToIngest) {
