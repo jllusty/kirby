@@ -25,7 +25,7 @@ public class NationalWeatherServiceClient implements WeatherClient {
     public NationalWeatherServiceClient() {}
 
     @Override
-    public List<WeatherStationDataRequest> getWeatherStationDataRequests(String territoryAbbreviation) {
+    public List<WeatherStationDataRequest> getWeatherStationDataRequests(String territoryAbbreviation, String ingestionBatchId) {
         try {
             // Generate Station Request, Generates Latest Requests
             HttpRequest.Builder builder = HttpRequest.newBuilder();
@@ -33,7 +33,7 @@ public class NationalWeatherServiceClient implements WeatherClient {
             builder.setHeader("Accept", "application/geo+json");
             builder.setHeader("User-Agent", "(jotunheim.dev, jllusty@gmail.com)");
             HttpResponse<String> httpResponse = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
-            return listStations(httpResponse.body());
+            return listStations(httpResponse.body(), ingestionBatchId);
         }
         // todo: should use more specific exception, and potentially not catch here, maybe in calling class
         catch(Exception e) {
@@ -42,7 +42,7 @@ public class NationalWeatherServiceClient implements WeatherClient {
         }
     }
 
-    private List<WeatherStationDataRequest> listStations(String httpResponseBodyString) {
+    private List<WeatherStationDataRequest> listStations(String httpResponseBodyString, String ingestionBatchId) {
         List<WeatherStationDataRequest> weatherStationDataRequestList = new ArrayList<>();
         // root JSON contains a list of features
         try {
@@ -59,7 +59,7 @@ public class NationalWeatherServiceClient implements WeatherClient {
                     weatherStationDataRequestList.add(stationDataRequestMap.get(stationURL));
                 }
                 else {
-                    stationDataRequestMap.put(stationURL, new WeatherStationDataRequest(stationURL));
+                    stationDataRequestMap.put(stationURL, new WeatherStationDataRequest(stationURL, ingestionBatchId));
                     weatherStationDataRequestList.add(stationDataRequestMap.get(stationURL));
                 }
             }
@@ -73,26 +73,30 @@ public class NationalWeatherServiceClient implements WeatherClient {
 
 
     // tries to get an optional property from a Map<String,Object> propertiesJSONmap
-    // is T extends Object a meaningful bound? I could have T extend a ObservationValue class
-    // or something
-private <T extends Object> Optional<T> getOptionalValueFromPropertiesJsonMap(Map<String, Object> propertiesJsonMap, String propertyName, Class<T> type) {
-    if (propertiesJsonMap.containsKey(propertyName)) {
-        try {
-            Map<String, Object> temperaturesJSONmap = new ObjectMapper().convertValue(propertiesJsonMap.get("temperature"), new TypeReference<Map<String, Object>>() {});
-            return Optional.of(type.cast(temperaturesJSONmap.get("value")));
+    private Optional<Double> getOptionalValueFromPropertiesJsonMap(Map<String, Object> propertiesJsonMap, String propertyName) {
+        if (propertiesJsonMap.containsKey(propertyName)) {
+            try {
+                Map<String, Object> valuesJSONmap = new ObjectMapper().convertValue(propertiesJsonMap.get(propertyName), new TypeReference<Map<String, Object>>() {});
+                return Optional.of(Double.valueOf(valuesJSONmap.get("value").toString()));
+            }
+            catch(NumberFormatException e) {
+                LOGGER.info("Value = %s for property = %s could not be converted to a Double : " + e.getMessage());
+            }
+            catch(IllegalArgumentException e) {
+                LOGGER.info("Could not fetch property = " + propertyName + " : " + e.getMessage());
+            }
+            catch(ClassCastException e) {
+                LOGGER.info("Could not cast property = " + propertyName + " to Double : " + e.getMessage());
+            }
+            catch(NullPointerException e) {
+                LOGGER.info("value key for property = " + propertyName + " is missing!");
+            }
         }
-        catch(IllegalArgumentException e) {
-            LOGGER.info("Could not fetch property = " + propertyName + " : " + e.getMessage());
-        }
-        catch(ClassCastException e) {
-            LOGGER.info("Could not cast property = " + propertyName + " to type " + type.getName() + " : " + e.getMessage());
-        }
+        return Optional.empty();
     }
-    return Optional.empty();
-}
 
     // create WeatherStationData from a NWS Weather Station API Request
-    private WeatherStationData createWeatherStationData(HttpResponse<String> response, Long timeOfRequest) {
+    private WeatherStationData createWeatherStationData(HttpResponse<String> response, Long timeOfRequest, String ingestionBatchId) {
         try {
             // root features of geoJSON
             Map<String,Object> featureJSONmap = new ObjectMapper().readValue(response.body(), new TypeReference<Map<String,Object>>(){});
@@ -101,8 +105,8 @@ private <T extends Object> Optional<T> getOptionalValueFromPropertiesJsonMap(Map
             // get geometry
             Map<String,Object> geometryJSONmap = new ObjectMapper().convertValue(featureJSONmap.get("geometry"), new TypeReference<Map<String,Object>>(){});
             List<String> latLng = new ObjectMapper().convertValue(geometryJSONmap.get("coordinates"), new TypeReference<List<String>>(){});
-            Double lat =  Double.valueOf(latLng.get(0));
-            Double lng =  Double.valueOf(latLng.get(1));
+            Double lat =  Double.valueOf(latLng.get(1));
+            Double lng =  Double.valueOf(latLng.get(0));
 
             // get properties
             if(featureJSONmap.containsKey("properties")) {
@@ -112,13 +116,15 @@ private <T extends Object> Optional<T> getOptionalValueFromPropertiesJsonMap(Map
                 // todo: should check required properties for nullness? not here, in the weather data builder method
 
                 // get optional properties
-                Optional<Double> temperature = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap,"temperature", Double.class);
-                Optional<Double> pressure = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "barometricPressure", Double.class);
-                Optional<Double> elevation = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "elevation", Double.class);
+                Optional<Double> temperature = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap,"temperature");
+                Optional<Double> pressure = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "barometricPressure");
+                Optional<Double> elevation = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "elevation");
+                // todo: refactor ingestionBatchId
                 return new WeatherStationData.WeatherStationDataBuilder(id, timeOfRequest, lat, lng)
                         .setTemperature(temperature)
                         .setPressure(pressure)
                         .setElevation(elevation)
+                        .setIngestionBatchId(Optional.of(ingestionBatchId))
                         .build();
             }
             else {
@@ -140,7 +146,7 @@ private <T extends Object> Optional<T> getOptionalValueFromPropertiesJsonMap(Map
             Long timeOfRequest = Instant.now().getEpochSecond();
             HttpResponse<String> response = httpClient.send(weatherStationDataRequest.getHttpRequest(), HttpResponse.BodyHandlers.ofString());
             // map each response to a data object
-            return createWeatherStationData(response,timeOfRequest);
+            return createWeatherStationData(response,timeOfRequest,weatherStationDataRequest.getIngestionBatchId());
         }
         catch(Exception e) {
             LOGGER.error("Weather Station Request Failure: "+ e.getMessage());

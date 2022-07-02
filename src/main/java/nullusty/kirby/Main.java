@@ -17,8 +17,6 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
         LOGGER.info("KIRBY (>'o')> starting...");
-        // Run identifier (unused)
-        String runUUID = UUID.randomUUID().toString();
 
         // Backend MySQL (kirby table) to dump weather data to
         MySQLDao mySQLDao = new MySQLDao();
@@ -37,18 +35,21 @@ public class Main {
         NationalWeatherServiceClient nwsClient = new NationalWeatherServiceClient();
 
         // Should be runtime args
-        List<String> statesToIngest = Arrays.asList("North Carolina","South Carolina");
+        List<String> statesToIngest = Arrays.asList("Oregon");
 
         // Run for 1 hours (should be parameters)
         long runTime = Duration.of(9, ChronoUnit.HOURS).toSeconds();
         long startTime =  Instant.now().getEpochSecond();
         long endTime = startTime + runTime;
         while(Instant.now().getEpochSecond() < endTime) {
+            // Run identifier (unused)
+            String runUUID = UUID.randomUUID().toString();
+
             // Ingest each US territories weather data
             for(String stateName : statesToIngest) {
                 String territoryAbbreviation = jackie.getAbbreviationFromStateName(stateName);
                 // Get List of Weather Station Requests
-                List<WeatherStationDataRequest> weatherStationDataRequestsList = nwsClient.getWeatherStationDataRequests(territoryAbbreviation);
+                List<WeatherStationDataRequest> weatherStationDataRequestsList = nwsClient.getWeatherStationDataRequests(territoryAbbreviation, runUUID);
                 for(WeatherStationDataRequest weatherStationDataRequest : weatherStationDataRequestsList) {
                     // Log Request + StationURL
                     LOGGER.info("HTTP Request: " + weatherStationDataRequest.toString());

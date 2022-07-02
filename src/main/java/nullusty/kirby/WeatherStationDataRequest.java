@@ -9,9 +9,11 @@ public class WeatherStationDataRequest {
     // HttpRequest
     private final HttpRequest request;
     // other request metadata
-    final String stationId;
-    public WeatherStationDataRequest(String stationId) throws URISyntaxException {
+    private final String stationId;
+    private final String ingestionBatchId;
+    public WeatherStationDataRequest(String stationId, String ingestionBatchId) throws URISyntaxException {
         this.stationId = stationId;
+        this.ingestionBatchId = ingestionBatchId;
 
         // build request at instantiation time
         this.request = HttpRequest.newBuilder()
@@ -23,6 +25,9 @@ public class WeatherStationDataRequest {
 
     public HttpRequest getHttpRequest() {
         return request;
+    }
+    public String getIngestionBatchId() {
+        return ingestionBatchId;
     }
 
     public String toString() {

@@ -1,5 +1,6 @@
 package nullusty.kirby;
 
+import com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.Opt;
 
 import java.util.Optional;
@@ -11,24 +12,8 @@ public class WeatherStationData {
     // Unique Identifier (Required)
     final private String id;
 
-    // WeatherStationDataProperty<V,U> w/ V value typeclass and U unit typeclass?
-    // WeatherStationDataProperty<Double,Meters>
-    // weatherStationDataProperty.getValueClass()
-    // weatherStationDataProperty.getUnitClass()
-    // weatherStationDataProperty.getUnitClass().toToMillimeters()
-    //
-    // too many units - this could get hairy. Why not just an enum?
-    // Why do we care what units these are in if it is clearly annotated?
-    //
-    // It needs to be reflected all the way through to the database where the units are stored,
-    // and as long as it has a properly maintained schema it shouldn't be an issue.
-    //
-    // There is an aspect to units that needs to be established: converting the 3rd party providers
-    // units into our own, internal units.
-    //
-
     // Time of Observation (Required)
-    final private Long observationTimeSeconds;          // backend unit: Seconds (Unix Time)
+    final private Long observationTimeSeconds;            // backend unit: Seconds (Unix Time)
 
     // Geographical Properties (Required)
     final private Double latitude;                        // backend unit: Latitude (degrees), and Longitude (degrees)
@@ -41,6 +26,9 @@ public class WeatherStationData {
     final private Optional<Double> pressure;              // backend unit: 1 Pascal (Pa) == 1 Newton per Square Meter (N/m^2)
     final private Optional<Double> temperature;           // backend unit: Celsius
 
+    // Metadata Properties
+    final private Optional<String> ingestionBatchId;
+
     public static class WeatherStationDataBuilder {
         // Required Properties
         final private String id;
@@ -52,8 +40,24 @@ public class WeatherStationData {
         private Optional<Double> elevation = Optional.empty();
         private Optional<Double> temperature = Optional.empty();
         private Optional<Double> pressure = Optional.empty();
+        private Optional<String> ingestionBatchId = Optional.empty();
 
         public WeatherStationDataBuilder(String id, Long observationTimeSeconds, Double latitude, Double longitude) {
+            // id is not null or empty string
+            Preconditions.checkArgument(id != null, "id cannot be null");
+            Preconditions.checkArgument(!id.isEmpty(), "id cannot be empty");
+
+            // Observation Time not null
+            Preconditions.checkArgument(observationTimeSeconds != null, "observationTimeSeconds cannot be null");
+
+            // Longitude/Latitude not null
+            Preconditions.checkArgument(latitude != null, "latitude cannot be null");
+            Preconditions.checkArgument(longitude != null, "longitude cannot be null");
+            // -90 <= Latitude <= 90
+            Preconditions.checkArgument(Math.abs(latitude) <= 90.0, "latitude = %s cannot exceed 90.0 or subceed -90.0", latitude);
+            // -180 <= Longitude <= 180
+            Preconditions.checkArgument(Math.abs(longitude) <= 180.0, "longitude = %s cannot exceed 180.0 or subceed -180.0", longitude);
+
             this.id = id;
             this.observationTimeSeconds = observationTimeSeconds;
             this.latitude = latitude;
@@ -72,6 +76,10 @@ public class WeatherStationData {
             this.elevation = elevation;
             return this;
         }
+        public WeatherStationDataBuilder setIngestionBatchId(Optional<String> ingestionBatchId) {
+            this.ingestionBatchId = ingestionBatchId;
+            return this;
+        }
 
         public WeatherStationData build() {
             return new WeatherStationData(
@@ -81,7 +89,8 @@ public class WeatherStationData {
                     this.longitude,
                     this.elevation,
                     this.temperature,
-                    this.pressure
+                    this.pressure,
+                    this.ingestionBatchId
             );
         }
     }
@@ -92,7 +101,8 @@ public class WeatherStationData {
                               Double longitude,
                               Optional<Double> elevation,
                               Optional<Double> temperature,
-                              Optional<Double> pressure)
+                              Optional<Double> pressure,
+                              Optional<String> ingestionBatchId)
     {
         this.id = id;
         this.observationTimeSeconds = observationTimeSeconds;
@@ -101,6 +111,7 @@ public class WeatherStationData {
         this.elevation = elevation;
         this.temperature = temperature;
         this.pressure = pressure;
+        this.ingestionBatchId = ingestionBatchId;
     }
     public String getId() {
         return id;
@@ -108,12 +119,11 @@ public class WeatherStationData {
     public Long getObservationTimeSeconds() {
         return observationTimeSeconds;
     }
-    public Double getLatitude() {
-        return latitude;
-    }
+    public Double getLatitude() { return latitude; }
     public Double getLongitude() {
         return longitude;
     }
+    public Optional<String> getIngestionBatchId() { return ingestionBatchId; }
     public Optional<Double> getTemperature() {
         return temperature;
     }
@@ -126,13 +136,14 @@ public class WeatherStationData {
 
     public String toString() {
         return String.format(
-                "{\n\tid: %s,\n\tts: %s,\n\ttemperature: %s,\n\tpressure: %s,\n\tlatitude: %s,\n\tlongitude: %s\n}",
+                "{\n\tid: %s,\n\tts: %s,\n\ttemperature: %s,\n\tpressure: %s,\n\tlatitude: %s,\n\tlongitude: %s\n,\n\tingestionBatchId: %s}",
                 id,
                 observationTimeSeconds,
                 temperature,
                 pressure,
                 latitude,
-                longitude
+                longitude,
+                ingestionBatchId
         );
     }
 }
