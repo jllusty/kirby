@@ -5,6 +5,8 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Instant;
+import java.util.Optional;
+import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,20 +26,33 @@ public class MySQLDao {
     public void insertWeatherData(WeatherStationData weatherStationData, String stateName) throws SQLException {
         if(weatherStationData == null) return;
 
+        // if optional is empty, convert to value or null
+        Function<Optional<Double>,Double> toValueOrNull = (x) -> (!x.isEmpty()) ? x.get() : null;
+
         // convert optionals to null for SQL
-        Double temperature = (!weatherStationData.getTemperature().isEmpty()) ? weatherStationData.getTemperature().get() : null;
-        Double pressure = (!weatherStationData.getPressure().isEmpty()) ? weatherStationData.getPressure().get() : null;
-        Double elevation = (!weatherStationData.getElevation().isEmpty()) ? weatherStationData.getElevation().get() : null;
+        Double temperature = toValueOrNull.apply(weatherStationData.getTemperature());
+        Double seaLevelPressure = toValueOrNull.apply(weatherStationData.getSeaLevelPressure());
+        Double barometricPressure = toValueOrNull.apply(weatherStationData.getBarometricPressure());
+        Double elevation = toValueOrNull.apply(weatherStationData.getElevation());
+        Double dewpoint = toValueOrNull.apply(weatherStationData.getDewpoint());
+        Double relativeHumidity = toValueOrNull.apply(weatherStationData.getRelativeHumidity());
+        Double windSpeed = toValueOrNull.apply(weatherStationData.getWindSpeed());
+        Double windDirection = toValueOrNull.apply(weatherStationData.getWindDirection());
 
         // create insertion query
-        String query = String.format("INSERT INTO WEATHER (station,ts,lat,lng,elevation,temperature,pressure,state,ingestion_batch_id) VALUES ('%s',%s,%s,%s,%s,%s,%s,'%s','%s')",
+        String query = String.format("INSERT INTO WEATHER (station,ts,lat,lng,elevation,temperature,barometric_pressure,sea_level_pressure,wind_speed,wind_direction,dewpoint,relative_humidity,state,ingestion_batch_id) VALUES ('%s',%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'%s','%s')",
                 weatherStationData.getId(),
                 weatherStationData.getObservationTimeSeconds(),
                 weatherStationData.getLatitude(),
                 weatherStationData.getLongitude(),
                 elevation,
                 temperature,
-                pressure,
+                barometricPressure,
+                seaLevelPressure,
+                windSpeed,
+                windDirection,
+                dewpoint,
+                relativeHumidity,
                 stateName,
                 weatherStationData.getIngestionBatchId());
         LOGGER.info("Executing SQL Query: " + query);

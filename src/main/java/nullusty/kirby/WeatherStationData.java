@@ -23,8 +23,13 @@ public class WeatherStationData {
     final private Optional<Double> elevation;             // backend unit: Meters
 
     // Metrological Properties (Optional, availability depends on a number of uncontrollable factors)
-    final private Optional<Double> pressure;              // backend unit: 1 Pascal (Pa) == 1 Newton per Square Meter (N/m^2)
     final private Optional<Double> temperature;           // backend unit: Celsius
+    final private Optional<Double> barometricPressure;    // backend unit: 1 Pascal (Pa) == 1 Newton per Square Meter (N/m^2)
+    final private Optional<Double> seaLevelPressure;
+    final private Optional<Double> windSpeed;
+    final private Optional<Double> windDirection;
+    final private Optional<Double> relativeHumidity;
+    final private Optional<Double> dewpoint;
 
     // Metadata Properties (Required)
     final private String ingestionBatchId;
@@ -37,10 +42,15 @@ public class WeatherStationData {
         final private Double longitude;
         final private String ingestionBatchId;
 
-        // Optional Properties
+        // Optional Metrological Properties
         private Optional<Double> elevation = Optional.empty();
         private Optional<Double> temperature = Optional.empty();
-        private Optional<Double> pressure = Optional.empty();
+        private Optional<Double> barometricPressure = Optional.empty();
+        private Optional<Double> seaLevelPressure = Optional.empty();
+        private Optional<Double> windSpeed = Optional.empty();
+        private Optional<Double> windDirection = Optional.empty();
+        private Optional<Double> relativeHumidity = Optional.empty();
+        private Optional<Double> dewpoint = Optional.empty();
 
         public Builder(String id, Long observationTimeSeconds, Double latitude, Double longitude, String ingestionBatchId) {
             // id is not null or empty string
@@ -73,12 +83,32 @@ public class WeatherStationData {
             this.temperature = temperature;
             return this;
         }
-        public Builder setPressure(Optional<Double> pressure) {
-            this.pressure = pressure;
+        public Builder setBarometricPressure(Optional<Double> barometricPressure) {
+            this.barometricPressure = barometricPressure;
             return this;
         }
         public Builder setElevation(Optional<Double> elevation) {
             this.elevation = elevation;
+            return this;
+        }
+        public Builder setRelativeHumidity(Optional<Double> relativeHumidity) {
+            this.relativeHumidity = relativeHumidity;
+            return this;
+        }
+        public Builder setSeaLevelPressure(Optional<Double> seaLevelPressure) {
+            this.seaLevelPressure = seaLevelPressure;
+            return this;
+        }
+        public Builder setWindSpeed(Optional<Double> windSpeed) {
+            this.windSpeed = windSpeed;
+            return this;
+        }
+        public Builder setWindDirection(Optional<Double> windDirection) {
+            this.windDirection = windDirection;
+            return this;
+        }
+        public Builder setDewpoint(Optional<Double> dewpoint) {
+            this.dewpoint = dewpoint;
             return this;
         }
 
@@ -91,7 +121,12 @@ public class WeatherStationData {
                     this.ingestionBatchId,
                     this.elevation,
                     this.temperature,
-                    this.pressure
+                    this.barometricPressure,
+                    this.seaLevelPressure,
+                    this.dewpoint,
+                    this.relativeHumidity,
+                    this.windSpeed,
+                    this.windDirection
             );
         }
     }
@@ -103,7 +138,12 @@ public class WeatherStationData {
                               String ingestionBatchId,
                               Optional<Double> elevation,
                               Optional<Double> temperature,
-                              Optional<Double> pressure)
+                              Optional<Double> barometricPressure,
+                              Optional<Double> seaLevelPressure,
+                              Optional<Double> dewpoint,
+                              Optional<Double> relativeHumidity,
+                              Optional<Double> windSpeed,
+                              Optional<Double> windDirection)
     {
         this.id = id;
         this.observationTimeSeconds = observationTimeSeconds;
@@ -111,12 +151,15 @@ public class WeatherStationData {
         this.longitude = longitude;
         this.elevation = elevation;
         this.temperature = temperature;
-        this.pressure = pressure;
+        this.barometricPressure = barometricPressure;
+        this.seaLevelPressure = seaLevelPressure;
         this.ingestionBatchId = ingestionBatchId;
+        this.dewpoint = dewpoint;
+        this.windSpeed = windSpeed;
+        this.windDirection = windDirection;
+        this.relativeHumidity = relativeHumidity;
     }
-    public String getId() {
-        return id;
-    }
+    public String getId() { return id; }
     public Long getObservationTimeSeconds() {
         return observationTimeSeconds;
     }
@@ -128,23 +171,13 @@ public class WeatherStationData {
     public Optional<Double> getTemperature() {
         return temperature;
     }
-    public Optional<Double> getPressure() {
-        return pressure;
-    }
+    public Optional<Double> getBarometricPressure() { return barometricPressure; }
+    public Optional<Double> getWindSpeed() { return windSpeed; }
+    public Optional<Double> getWindDirection() { return windDirection; }
+    public Optional<Double> getSeaLevelPressure() { return seaLevelPressure; }
+    public Optional<Double> getDewpoint() { return dewpoint; }
+    public Optional<Double> getRelativeHumidity() { return relativeHumidity; }
     public Optional<Double> getElevation() {
         return elevation;
-    }
-
-    public String toString() {
-        return String.format(
-                "{\n\tid: %s,\n\tts: %s,\n\ttemperature: %s,\n\tpressure: %s,\n\tlatitude: %s,\n\tlongitude: %s\n,\n\tingestionBatchId: %s}",
-                id,
-                observationTimeSeconds,
-                temperature,
-                pressure,
-                latitude,
-                longitude,
-                ingestionBatchId
-        );
     }
 }

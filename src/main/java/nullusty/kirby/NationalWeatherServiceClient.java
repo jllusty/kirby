@@ -68,7 +68,6 @@ public class NationalWeatherServiceClient implements WeatherClient {
         return weatherStationDataRequestList;
     }
 
-
     // tries to get an optional property from a Map<String,Object> propertiesJSONmap in specific units
     private <Q extends Quantity<Q>> Optional<Double> getOptionalValueFromPropertiesJsonMap(Map<String, Object> propertiesJsonMap, String propertyName, Unit<Q> desiredUnit) {
         if (propertiesJsonMap.containsKey(propertyName)) {
@@ -110,7 +109,7 @@ public class NationalWeatherServiceClient implements WeatherClient {
     }
 
     // create WeatherStationData from a NWS Weather Station API Request
-    // todo: could this be moved into a WeatherStationData.Builder?
+    // todo: should this be moved into a WeatherStationData.Builder?
     private WeatherStationData createWeatherStationData(HttpResponse<String> response, Long timeOfRequest, String ingestionBatchId) {
         try {
             // root features of geoJSON
@@ -131,11 +130,20 @@ public class NationalWeatherServiceClient implements WeatherClient {
 
                 // get optional properties
                 Optional<Double> temperature = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "temperature", CELSIUS);
-                Optional<Double> pressure = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "barometricPressure", PASCAL);
+                Optional<Double> barometricPressure = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "barometricPressure", PASCAL);
+                Optional<Double> dewpoint = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "dewpoint", CELSIUS);
+                Optional<Double> windSpeed = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "windSpeed", KILOMETRE_PER_HOUR);
+                // todo: need unit for "wmounit:degree_(angle)", but we only have RADIAN :( in this implementation
+                Optional<Double> seaLevelPressure = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "seaLevelPressure", PASCAL);
+                Optional<Double> relativeHumidity = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "relativeHumidity", PASCAL);
                 Optional<Double> elevation = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "elevation", METRE);
                 return new WeatherStationData.Builder(id, timeOfRequest, lat, lng, ingestionBatchId)
                         .setTemperature(temperature)
-                        .setPressure(pressure)
+                        .setDewpoint(dewpoint)
+                        .setSeaLevelPressure(seaLevelPressure)
+                        .setBarometricPressure(barometricPressure)
+                        .setRelativeHumidity(relativeHumidity)
+                        .setWindSpeed(windSpeed)
                         .setElevation(elevation)
                         .build();
             }
