@@ -12,13 +12,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // Do we really need more than one of these?
-public class MySQLDao {
+public class MySQLDao implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(MySQLDao.class);
     Connection con;
 
     // throw on construction
     public MySQLDao() throws ClassNotFoundException, SQLException {
         Class.forName("com.mysql.cj.jdbc.Driver");
+        // should be static parameters or something passed into the constructor
         con = DriverManager.getConnection("jdbc:mysql://localhost/kirby?user=kirby&password=kirby");
         LOGGER.info("initialized");
     }
@@ -57,7 +58,14 @@ public class MySQLDao {
                 weatherStationData.getIngestionBatchId());
         LOGGER.info("Executing SQL Query: " + query);
 
-        Statement stmt = con.createStatement();
-        stmt.execute(query);
+        // statement should be closed when this is finished
+        try(Statement stmt = con.createStatement()) {
+            stmt.execute(query);
+        }
+    }
+
+    // implement close() method for AutoClosable
+    public void close() throws SQLException {
+        con.close();
     }
 }
