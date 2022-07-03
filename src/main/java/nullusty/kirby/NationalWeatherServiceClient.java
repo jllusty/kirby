@@ -14,6 +14,12 @@ import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.measure.Quantity;
+import javax.measure.Unit;
+import javax.measure.quantity.Temperature;
+
+import static tec.units.ri.unit.Units.*;
+
 public class NationalWeatherServiceClient implements WeatherClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(NationalWeatherServiceClient.class);
 
@@ -63,12 +69,29 @@ public class NationalWeatherServiceClient implements WeatherClient {
     }
 
 
-    // tries to get an optional property from a Map<String,Object> propertiesJSONmap
-    private Optional<Double> getOptionalValueFromPropertiesJsonMap(Map<String, Object> propertiesJsonMap, String propertyName) {
+    // tries to get an optional property from a Map<String,Object> propertiesJSONmap in specific units
+    private <Q extends Quantity<Q>> Optional<Double> getOptionalValueFromPropertiesJsonMap(Map<String, Object> propertiesJsonMap, String propertyName, Unit<Q> desiredUnit) {
         if (propertiesJsonMap.containsKey(propertyName)) {
             try {
                 Map<String, Object> valuesJSONmap = new ObjectMapper().convertValue(propertiesJsonMap.get(propertyName), new TypeReference<Map<String, Object>>() {});
+                if(valuesJSONmap.containsKey("unitCode")) {
+                    // todo: consider unitCodes other than wmo:unitCode if necessary
+                    String unitCode = valuesJSONmap.get("unitCode").toString();
+                    // correct units, no transformation necessary
+                    if(desiredUnit == WMOUnits.convertWMOUnitCodeStringToUnit(unitCode)) {
+                        return Optional.of(Double.valueOf(valuesJSONmap.get("value").toString()));
+                    }
+                    // units do not match our backend
+                    else {
+                        // todo: are the units compatible i.e. of same dimension? if so, transform and put that in the backend
+                        // i.e. if(desiredUnit.isCompatible(WMOUnits.convertWMOUnitCodeStringToUnit(unitCode))) { ... }
+                        throw new IllegalArgumentException("propertiesJSON map reported a unit that doesn't match our backend");
+                    }
+                }
                 return Optional.of(Double.valueOf(valuesJSONmap.get("value").toString()));
+            }
+            catch(ClassNotFoundException e) {
+                LOGGER.info(e.getMessage());
             }
             catch(NumberFormatException e) {
                 LOGGER.info("Value = %s for property = %s could not be converted to a Double : " + e.getMessage());
@@ -87,7 +110,7 @@ public class NationalWeatherServiceClient implements WeatherClient {
     }
 
     // create WeatherStationData from a NWS Weather Station API Request
-    // todo: could this be moved into WeatherStationData.Builder?
+    // todo: could this be moved into a WeatherStationData.Builder?
     private WeatherStationData createWeatherStationData(HttpResponse<String> response, Long timeOfRequest, String ingestionBatchId) {
         try {
             // root features of geoJSON
@@ -107,14 +130,13 @@ public class NationalWeatherServiceClient implements WeatherClient {
                 String id = propertiesJSONmap.get("station").toString();
 
                 // get optional properties
-                Optional<Double> temperature = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap,"temperature");
-                Optional<Double> pressure = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "barometricPressure");
-                Optional<Double> elevation = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "elevation");
-                return new WeatherStationData.Builder(id, timeOfRequest, lat, lng)
+                Optional<Double> temperature = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "temperature", CELSIUS);
+                Optional<Double> pressure = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "barometricPressure", PASCAL);
+                Optional<Double> elevation = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "elevation", METRE);
+                return new WeatherStationData.Builder(id, timeOfRequest, lat, lng, ingestionBatchId)
                         .setTemperature(temperature)
                         .setPressure(pressure)
                         .setElevation(elevation)
-                        .setIngestionBatchId(Optional.of(ingestionBatchId))
                         .build();
             }
             else {

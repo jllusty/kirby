@@ -26,8 +26,8 @@ public class WeatherStationData {
     final private Optional<Double> pressure;              // backend unit: 1 Pascal (Pa) == 1 Newton per Square Meter (N/m^2)
     final private Optional<Double> temperature;           // backend unit: Celsius
 
-    // Metadata Properties
-    final private Optional<String> ingestionBatchId;
+    // Metadata Properties (Required)
+    final private String ingestionBatchId;
 
     public static class Builder {
         // Required Properties
@@ -35,14 +35,14 @@ public class WeatherStationData {
         final private Long observationTimeSeconds;
         final private Double latitude;
         final private Double longitude;
+        final private String ingestionBatchId;
 
         // Optional Properties
         private Optional<Double> elevation = Optional.empty();
         private Optional<Double> temperature = Optional.empty();
         private Optional<Double> pressure = Optional.empty();
-        private Optional<String> ingestionBatchId = Optional.empty();
 
-        public Builder(String id, Long observationTimeSeconds, Double latitude, Double longitude) {
+        public Builder(String id, Long observationTimeSeconds, Double latitude, Double longitude, String ingestionBatchId) {
             // id is not null or empty string
             Preconditions.checkArgument(id != null, "id cannot be null");
             Preconditions.checkArgument(!id.isEmpty(), "id cannot be empty");
@@ -58,10 +58,15 @@ public class WeatherStationData {
             // -180 <= Longitude <= 180
             Preconditions.checkArgument(Math.abs(longitude) <= 180.0, "longitude = %s cannot exceed 180.0 or subceed -180.0", longitude);
 
+            // Ingestion Batch Id not null or empty
+            Preconditions.checkArgument(ingestionBatchId != null, "ingestionBatchId cannot be null");
+            Preconditions.checkArgument(!ingestionBatchId.isEmpty(), "ingestionBatchId cannot be empty");
+
             this.id = id;
             this.observationTimeSeconds = observationTimeSeconds;
             this.latitude = latitude;
             this.longitude = longitude;
+            this.ingestionBatchId = ingestionBatchId;
         }
 
         public Builder setTemperature(Optional<Double> temperature) {
@@ -76,10 +81,6 @@ public class WeatherStationData {
             this.elevation = elevation;
             return this;
         }
-        public Builder setIngestionBatchId(Optional<String> ingestionBatchId) {
-            this.ingestionBatchId = ingestionBatchId;
-            return this;
-        }
 
         public WeatherStationData build() {
             return new WeatherStationData(
@@ -87,22 +88,22 @@ public class WeatherStationData {
                     this.observationTimeSeconds,
                     this.latitude,
                     this.longitude,
+                    this.ingestionBatchId,
                     this.elevation,
                     this.temperature,
-                    this.pressure,
-                    this.ingestionBatchId
+                    this.pressure
             );
         }
     }
 
-    private  WeatherStationData(String id,
+    private WeatherStationData(String id,
                               Long observationTimeSeconds,
                               Double latitude,
                               Double longitude,
+                              String ingestionBatchId,
                               Optional<Double> elevation,
                               Optional<Double> temperature,
-                              Optional<Double> pressure,
-                              Optional<String> ingestionBatchId)
+                              Optional<Double> pressure)
     {
         this.id = id;
         this.observationTimeSeconds = observationTimeSeconds;
@@ -123,7 +124,7 @@ public class WeatherStationData {
     public Double getLongitude() {
         return longitude;
     }
-    public Optional<String> getIngestionBatchId() { return ingestionBatchId; }
+    public String getIngestionBatchId() { return ingestionBatchId; }
     public Optional<Double> getTemperature() {
         return temperature;
     }

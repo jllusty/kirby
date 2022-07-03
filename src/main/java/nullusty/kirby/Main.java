@@ -66,6 +66,7 @@ public class Main {
                         LOGGER.error(weatherStationData.getId() + " is not contained in " + stateName);
                     }
                     // Insert Weather Data into MySQL
+                    // todo: consider batching?
                     mySQLDao.insertWeatherData(weatherStationData, territoryAbbreviation);
                 }
             }
