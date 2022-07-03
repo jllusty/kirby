@@ -135,7 +135,7 @@ public class NationalWeatherServiceClient implements WeatherClient {
                 Optional<Double> windSpeed = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "windSpeed", KILOMETRE_PER_HOUR);
                 // todo: need unit for "wmounit:degree_(angle)", but we only have RADIAN :( in this implementation
                 Optional<Double> seaLevelPressure = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "seaLevelPressure", PASCAL);
-                Optional<Double> relativeHumidity = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "relativeHumidity", PASCAL);
+                Optional<Double> relativeHumidity = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "relativeHumidity", PERCENT);
                 Optional<Double> elevation = getOptionalValueFromPropertiesJsonMap(propertiesJSONmap, "elevation", METRE);
                 return new WeatherStationData.Builder(id, timeOfRequest, lat, lng, ingestionBatchId)
                         .setTemperature(temperature)
