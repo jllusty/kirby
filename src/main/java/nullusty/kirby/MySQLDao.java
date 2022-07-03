@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 
 // Do we really need more than one of these?
 public class MySQLDao {
-    private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MySQLDao.class);
     Connection con;
 
     // throw on construction
