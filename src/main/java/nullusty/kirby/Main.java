@@ -1,5 +1,7 @@
 package nullusty.kirby;
 
+import java.io.IOException;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -16,66 +18,69 @@ public class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
     public static void main(String[] args) throws Exception {
-        LOGGER.info("KIRBY (>'o')> starting!");
-
         // Backend MySQL (kirby table) to dump weather data to
-        // todo: refactor main into an initialization step for the
-        //   database initialization + commandline parsing (which doesn't exist yet) >:)
-        //   and a void execute() method
-        try(MySQLDao mySQLDao = new MySQLDao()) {
-            // these next two objects should be merged - an object that knows statenames should know their boundaries
-            // in the future we should associate the time of the query with what we populate in the backend,
-            //
-            // todo: put sourcefiles in local resource folder
-            // for processing, all state boundaries from the US Census Bureau
-            // implicitly sets the time that you initialize it for aggregating in the backend,
-            ShapeDao shapeDao = new ShapeDao("C:\\Users\\jllus\\Downloads\\cb_2018_us_state_500k\\cb_2018_us_state_500k.shp");
-            // for processing, all US territory names <=> US territory acronyms
-            GeographyNerd jackie = new GeographyNerd("C:\\Users\\jllus\\Downloads\\statenames.txt");
+        try (MySQLDao mySQLDao = new MySQLDao()) {
+            execute(mySQLDao);
+        }
+    }
 
-            // NationalWeatherService (NWS) Client
-            NationalWeatherServiceClient nwsClient = new NationalWeatherServiceClient();
+    public static void execute(MySQLDao mySQLDao) throws IOException {
+        LOGGER.info("KIRBY (>'o')> starting!");
+        // todo: put sourcefiles in local resource folder
+        TerritoryDataClient jackie = new FileTerritoryClient(
+                "C:\\Users\\jllus\\Downloads\\cb_2018_us_state_500k\\cb_2018_us_state_500k.shp",
+                "C:\\Users\\jllus\\Downloads\\statenames.txt");
 
-            // Should be runtime args
-            List<String> statesToIngest = Arrays.asList("Oregon");
+        // NationalWeatherService (NWS) Client
+        WeatherClient nwsClient = new NationalWeatherServiceClient();
 
-            // Run for 1 hours (should be parameters)
-            Long runTime = Duration.of(1, ChronoUnit.HOURS).toSeconds();
-            Long startTime =  Instant.now().getEpochSecond();
-            Long endTime = startTime + runTime;
-            Integer numBatches = 0;
-            while(Instant.now().getEpochSecond() < endTime) {
-                // Run identifier
-                String runUUID = UUID.randomUUID().toString();
-                LOGGER.info("starting batch of ingestions with id = " + runUUID);
+        // Should be runtime args
+        List<String> indicesToIngest = Arrays.asList("OR");
 
-                // Ingest each US territories weather data
-                for(String stateName : statesToIngest) {
-                    String territoryAbbreviation = jackie.getAbbreviationFromStateName(stateName);
-                    // Get List of Weather Station Requests
-                    List<WeatherStationDataRequest> weatherStationDataRequestsList = nwsClient.getWeatherStationDataRequests(territoryAbbreviation, runUUID);
-                    for(WeatherStationDataRequest weatherStationDataRequest : weatherStationDataRequestsList) {
-                        // Log Request + StationURL
-                        LOGGER.info("HTTP Request: " + weatherStationDataRequest.toString());
-                        // Get Weather Station Data
-                        WeatherStationData weatherStationData = nwsClient.getWeatherStationData(weatherStationDataRequest);
-                        if(weatherStationData == null) {
-                            LOGGER.error("nwsClient returned null");
-                            continue;
-                        }
+        // Run for 1 hours (should be parameters)
+        Long runTime = Duration.of(1, ChronoUnit.HOURS).toSeconds();
+        Long startTime =  Instant.now().getEpochSecond();
+        Long endTime = startTime + runTime;
+        Integer numBatches = 0;
+        while(Instant.now().getEpochSecond() < endTime) {
+            // Run identifier
+            String runUUID = UUID.randomUUID().toString();
+            LOGGER.info("starting batch of ingestions with id = " + runUUID);
 
-                        // Sanity Check
-                        if(!shapeDao.doesStateContain(stateName, weatherStationData.getLatitude(), weatherStationData.getLongitude())) {
-                            LOGGER.error(weatherStationData.getId() + " is not contained in " + stateName);
-                        }
-                        // Insert Weather Data into MySQL
+            // Ingest each US territories weather data
+            for(String index : indicesToIngest) {
+                // TerritoryData for that state
+                TerritoryData territoryData = jackie.getTerritoryByIndex(index);
+                // Get List of Weather Station Requests
+                List<WeatherStationDataRequest> weatherStationDataRequestsList = nwsClient.getWeatherStationDataRequests(index, runUUID);
+                for(WeatherStationDataRequest weatherStationDataRequest : weatherStationDataRequestsList) {
+                    // Log Request + StationURL
+                    LOGGER.info("HTTP Request: " + weatherStationDataRequest.toString());
+                    // Get Weather Station Data
+                    WeatherStationData weatherStationData = nwsClient.getWeatherStationData(weatherStationDataRequest);
+                    if(weatherStationData == null) {
+                        LOGGER.error("nwsClient returned null");
+                        continue;
+                    }
+
+                    // Sanity Check
+                    if(!TerritoryDataHelper.doesTerritoryContainLatLong(territoryData, weatherStationData.getLatitude(), weatherStationData.getLongitude())) {
+                        LOGGER.error(weatherStationData.getId() + " is not contained in " + index);
+                    }
+
+                    // Insert Weather Data into MySQL
+                    try {
                         // todo: consider batching?
-                        mySQLDao.insertWeatherData(weatherStationData, territoryAbbreviation);
+                        mySQLDao.insertWeatherData(weatherStationData, index);
+                    }
+                    catch(SQLException e) {
+                        // todo: override toString method of weatherStationData and print diagnostic here
+                        LOGGER.error("Could not insert weatherStationData : " + e.getMessage());
                     }
                 }
-                numBatches++;
             }
-            LOGGER.info("KIRBY (>'o'>) all done! did {} batches.",numBatches);
+            numBatches++;
         }
+        LOGGER.info("KIRBY (>'o'>) all done! did {} batches.",numBatches);
     }
 }
