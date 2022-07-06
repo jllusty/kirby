@@ -26,10 +26,9 @@ public class Main {
 
     public static void execute(MySQLDao mySQLDao) throws IOException {
         LOGGER.info("KIRBY (>'o')> starting!");
-        // todo: put sourcefiles in local resource folder
         TerritoryDataClient jackie = new FileTerritoryClient(
-                "C:\\Users\\jllus\\Downloads\\cb_2018_us_state_500k\\cb_2018_us_state_500k.shp",
-                "C:\\Users\\jllus\\Downloads\\statenames.txt");
+                "resources\\cb_2018_us_state_500k\\cb_2018_us_state_500k.shp",
+                "resources\\statenames.txt");
 
         // NationalWeatherService (NWS) Client
         WeatherClient nwsClient = new NationalWeatherServiceClient();
